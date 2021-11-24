@@ -1,21 +1,19 @@
-import pandas as pd
+import bentoml
+import tensorflow as tf
 
-from bentoml import env, artifacts, api, BentoService
-from bentoml.adapters import DataframeInput
-from bentoml.frameworks.sklearn import SklearnModelArtifact
+from bentoml.artifact import TensorflowSavedModelArtifact
+from bentoml.adapters import TfTensorInput
 
-@env(infer_pip_packages=True)
-@artifacts([SklearnModelArtifact('model')])
-class MnistClassifier(BentoService):
-    """
-    A minimum prediction service exposing a Scikit-learn model
-    """
 
-    @api(input=DataframeInput(), batch=True)
-    def predict(self, df: pd.DataFrame):
-        """
-        An inference API named `predict` with Dataframe input adapter, which codifies
-        how HTTP requests or CSV files are converted to a pandas Dataframe object as the
-        inference API function input
-        """
-        return self.artifacts.model.predict(df)
+MNIST_CLASSES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+
+@bentoml.env(pip_dependencies=['tensorflow', 'numpy', 'pillow'])
+@bentoml.artifacts([TensorflowSavedModelArtifact('model')])
+class MnistClassifier(bentoml.BentoService):
+
+    @bentoml.api(input=TfTensorInput(), batch=True)
+    def predict(self, inputs):
+        outputs = self.artifacts.model.predict_image(inputs)
+        output_classes = tf.math.argmax(outputs, axis=1)
+        return [MNIST_CLASSES[c] for c in output_classes]
